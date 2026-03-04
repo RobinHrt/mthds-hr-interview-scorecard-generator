@@ -1,4 +1,4 @@
-domain    = "hr_interview_scorecard_generator"
+domain    = "hr_scorecard_generator"
 description = "Generate a structured interview kit with competency-mapped questions, scoring rubrics, and debrief templates"
 main_pipe = "interview_kit_generation"
 
@@ -28,7 +28,7 @@ description = "A complete interview round with questions and guidance"
 [concept.InterviewRound.structure]
 round_name       = { choices = ["phone screen", "technical", "behavioral", "hiring manager", "culture"], description = "Type of interview round", required = true }
 focus_areas      = { type = "text", description = "Which competencies this round evaluates", required = true }
-questions        = { type = "list", item_type = "concept", item_concept_ref = "hr_interview_scorecard_generator.InterviewQuestion", description = "4-6 structured questions for this round" }
+questions        = { type = "list", item_type = "concept", item_concept_ref = "hr_scorecard_generator.InterviewQuestion", description = "4-6 structured questions for this round" }
 anti_bias_reminders = { type = "text", description = "Anti-bias reminders for the interviewer" }
 
 [concept.InterviewKit]

@@ -8,5 +8,5 @@ license = "MIT"
 mthds_version = ">=1.0.0"
 main_pipe = "interview_kit_generation"
 
-[exports.hr_interview_scorecard_generator]
+[exports.hr_scorecard_generator]
 pipes = ["interview_kit_generation", "define_competency_matrix", "generate_interview_rounds", "compile_interview_kit"]
