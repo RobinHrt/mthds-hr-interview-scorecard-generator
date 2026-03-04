@@ -1,0 +1,12 @@
+[package]
+name = "hr_scorecard_generator"
+address = "github.com/RobinHrt/mthds-hr-interview-scorecard-generator"
+display_name = "HR Interview Scorecard Generator"
+version = "1.0.0"
+description = "Generate structured interview kits with competency-mapped questions"
+license = "MIT"
+mthds_version = ">=1.0.0"
+main_pipe = "interview_kit_generation"
+
+[exports.hr_interview_scorecard_generator]
+pipes = ["interview_kit_generation", "define_competency_matrix", "generate_interview_rounds", "compile_interview_kit"]

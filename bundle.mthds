@@ -1,0 +1,133 @@
+domain    = "hr_interview_scorecard_generator"
+description = "Generate a structured interview kit with competency-mapped questions, scoring rubrics, and debrief templates"
+main_pipe = "interview_kit_generation"
+
+[concept.CompetencyMatrix]
+description = "Mapping of competencies to interview rounds for full coverage"
+
+[concept.CompetencyMatrix.structure]
+competencies = { type = "text", description = "List of competencies identified for the role", required = true }
+round_assignments = { type = "text", description = "Which competencies are assessed in which round, ensuring full coverage with no redundancy", required = true }
+total_rounds = { type = "integer", description = "Total number of interview rounds planned" }
+
+[concept.InterviewQuestion]
+description = "A single structured interview question with rubric"
+
+[concept.InterviewQuestion.structure]
+question_text    = { type = "text", description = "The interview question", required = true }
+evaluates        = { type = "text", description = "Which specific competency this question assesses", required = true }
+follow_up_probes = { type = "text", description = "2-3 follow-up probes to dig deeper", required = true }
+strong_signal    = { type = "text", description = "What a great answer includes", required = true }
+acceptable_signal = { type = "text", description = "What a passing answer includes", required = true }
+weak_signal      = { type = "text", description = "Red flags or gaps in the answer", required = true }
+expected_duration = { type = "text", description = "Expected time for this question" }
+
+[concept.InterviewRound]
+description = "A complete interview round with questions and guidance"
+
+[concept.InterviewRound.structure]
+round_name       = { choices = ["phone screen", "technical", "behavioral", "hiring manager", "culture"], description = "Type of interview round", required = true }
+focus_areas      = { type = "text", description = "Which competencies this round evaluates", required = true }
+questions        = { type = "list", item_type = "concept", item_concept_ref = "hr_interview_scorecard_generator.InterviewQuestion", description = "4-6 structured questions for this round" }
+anti_bias_reminders = { type = "text", description = "Anti-bias reminders for the interviewer" }
+
+[concept.InterviewKit]
+description = "Complete structured interview kit for a role"
+
+[concept.InterviewKit.structure]
+role_title          = { type = "text", description = "Title of the role being hired for", required = true }
+competency_matrix   = { type = "text", description = "Which competencies are assessed in which round", required = true }
+rounds_summary      = { type = "text", description = "Overview of all interview rounds with their focus", required = true }
+debrief_template    = { type = "text", description = "Structured debrief template with scoring per competency (strong yes / yes / mixed / no / strong no)", required = true }
+recommendation_framework = { type = "text", description = "Framework for making the final hire/no-hire recommendation", required = true }
+
+# --- Pipes ---
+
+[pipe.interview_kit_generation]
+type        = "PipeSequence"
+description = "Generate a complete structured interview kit for a role"
+inputs      = { job_description = "Text", interview_methodology = "Text" }
+output      = "InterviewKit"
+steps = [
+    { pipe = "define_competency_matrix", result = "competency_matrix" },
+    { pipe = "generate_interview_rounds", result = "interview_rounds" },
+    { pipe = "compile_interview_kit", result = "interview_kit" },
+]
+
+[pipe.define_competency_matrix]
+type        = "PipeLLM"
+description = "Define the competency matrix mapping competencies to interview rounds"
+inputs      = { job_description = "Text", interview_methodology = "Text" }
+output      = "CompetencyMatrix"
+model       = "$writing-factual"
+prompt      = """You are a talent acquisition specialist designing an interview process.
+
+From the job description, identify the key competencies to evaluate (leadership, technical skills, collaboration, communication, initiative, problem-solving, etc.).
+
+Using the company's interview methodology, assign each competency to a specific interview round (phone screen, technical, behavioral, hiring manager, culture). Ensure:
+- Every competency is assessed in at least one round
+- No competency is redundantly assessed in multiple rounds
+- Each round has 2-4 competencies to focus on
+- The round order makes logical sense (phone screen first, culture last)
+
+--- JOB DESCRIPTION ---
+@job_description
+
+--- INTERVIEW METHODOLOGY ---
+@interview_methodology"""
+
+[pipe.generate_interview_rounds]
+type        = "PipeLLM"
+description = "Generate all interview rounds with questions and rubrics"
+inputs      = { competency_matrix = "CompetencyMatrix", job_description = "Text", interview_methodology = "Text" }
+output      = "InterviewRound[]"
+model       = "$writing-factual"
+prompt      = """You are an interview design expert creating structured interview rounds.
+
+For each round in the competency matrix, generate a complete interview round:
+
+1. Round name: phone screen, technical, behavioral, hiring manager, or culture.
+2. Focus areas: the competencies assigned to this round.
+3. For each competency, create 1-2 questions (4-6 total per round):
+   - A specific, behavioral or situational question (not generic like "tell me about yourself")
+   - What it evaluates (the specific competency)
+   - 2-3 follow-up probes to dig deeper
+   - Scoring rubric: what a strong signal looks like, what an acceptable signal looks like, and what a weak signal or red flag looks like
+   - Expected duration (5-10 minutes per question)
+4. Anti-bias reminders for the interviewer (e.g., evaluate against rubric not gut feel, don't penalize communication style differences).
+
+Make questions role-specific using details from the job description.
+
+--- COMPETENCY MATRIX ---
+@competency_matrix
+
+--- JOB DESCRIPTION ---
+@job_description
+
+--- INTERVIEW METHODOLOGY ---
+@interview_methodology"""
+
+[pipe.compile_interview_kit]
+type        = "PipeLLM"
+description = "Compile rounds and matrix into a complete interview kit"
+inputs      = { competency_matrix = "CompetencyMatrix", interview_rounds = "InterviewRound[]", job_description = "Text" }
+output      = "InterviewKit"
+model       = "$writing-factual"
+prompt      = """You are an HR director assembling the final interview kit.
+
+Compile all components into a professional interview kit:
+
+1. Role title (from the job description).
+2. Competency matrix: a clear table showing which competencies are assessed in which round.
+3. Rounds summary: brief overview of each round with its purpose and focus areas.
+4. Debrief template: a structured scoring form where each interviewer rates each competency they assessed as: strong yes, yes, mixed, no, or strong no. Include space for evidence notes.
+5. Recommendation framework: how to synthesize individual round scores into a final hire/no-hire recommendation. Include guidance for handling disagreements.
+
+--- COMPETENCY MATRIX ---
+@competency_matrix
+
+--- INTERVIEW ROUNDS ---
+@interview_rounds
+
+--- JOB DESCRIPTION ---
+@job_description"""
